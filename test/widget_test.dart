@@ -46,14 +46,23 @@ const String mockVideoFileName = "mock_video.mp4";
 final mockEmptyBytes = Uint8List(0);
 const String mockEmptyFileName = "empty.txt";
 
-// --- Fake FilePickerPlatform ---
-class FakeFilePickerPlatform extends Fake with MockPlatformInterfaceMixin implements FilePickerPlatform {
+// --- Fake FilePickerPlatform (Revised for robustness) ---
+class FakeFilePickerPlatform extends PlatformInterface implements FilePickerPlatform {
+  // Required for PlatformInterface
+  FakeFilePickerPlatform() : super(token: _token);
+  static final Object _token = Object();
+
   FilePickerResult? _mockResult;
   bool _pickFilesCalled = false;
+  // Add flags for other methods if needed for verification
+  // bool _clearTemporaryFilesCalled = false;
+  // bool _getDirectoryPathCalled = false;
+  // bool _saveFileCalled = false;
+
 
   void setMockResult(FilePickerResult? result) {
     _mockResult = result;
-    _pickFilesCalled = false; // Reset for next call verification
+    _pickFilesCalled = false;
   }
 
   bool get pickFilesCalled => _pickFilesCalled;
@@ -64,21 +73,52 @@ class FakeFilePickerPlatform extends Fake with MockPlatformInterfaceMixin implem
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
+    bool allowMultiple = false, // Corrected order based on typical signature, though order doesn't break it
     Function(FilePickerStatus)? onFileLoading,
     bool allowCompression = true,
-    bool allowMultiple = false,
     bool withData = false,
     bool withReadStream = false,
     bool lockParentWindow = false,
-    bool readSequential = false, // Added to match file_picker 10.2.0
+    bool readSequential = false,
   }) async {
     _pickFilesCalled = true;
+    // Mark other methods as not called for this specific interaction if necessary
     return _mockResult;
   }
 
-  // Implement other methods if needed by the app, otherwise they can be left as default (null/exception)
-}
+  @override
+  Future<bool?> clearTemporaryFiles() async {
+    // _clearTemporaryFilesCalled = true;
+    // Mock implementation:
+    return true;
+  }
 
+  @override
+  Future<String?> getDirectoryPath({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) async {
+    // _getDirectoryPathCalled = true;
+    // Mock implementation:
+    return null;
+  }
+
+  @override
+  Future<String?> saveFile({
+    String? dialogTitle,
+    String? fileName,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    bool lockParentWindow = false,
+    Uint8List? bytes,
+  }) async {
+    // _saveFileCalled = true;
+    // Mock implementation:
+    return null;
+  }
+}
 
 void main() {
   late FakeFilePickerPlatform fakeFilePickerPlatform;
@@ -101,7 +141,7 @@ void main() {
   }
 
   // Helper function to test file selection and UI update
-  Future<void> _testFileSelection(
+  Future<void> testFileSelectionUI( // Renamed from _testFileSelection
     WidgetTester tester,
     String testDesc,
     String fileName,
@@ -141,33 +181,33 @@ void main() {
 
   group('File Preview Widget Tests', () {
     testWidgets('Selects and displays text file preview correctly', (WidgetTester tester) async {
-      await _testFileSelection(tester, 'Text File', mockTextFileName, mockTextBytes);
+      await testFileSelectionUI(tester, 'Text File', mockTextFileName, mockTextBytes);
     });
 
     testWidgets('Selects and displays JSON file preview correctly', (WidgetTester tester) async {
-      await _testFileSelection(tester, 'JSON File', mockJsonFileName, mockJsonBytes);
+      await testFileSelectionUI(tester, 'JSON File', mockJsonFileName, mockJsonBytes);
     });
 
     testWidgets('Selects and displays code file preview correctly', (WidgetTester tester) async {
-      await _testFileSelection(tester, 'Code File', mockCodeFileName, mockCodeBytes);
+      await testFileSelectionUI(tester, 'Code File', mockCodeFileName, mockCodeBytes);
     });
 
     testWidgets('Selects and displays image file preview correctly', (WidgetTester tester) async {
-      await _testFileSelection(tester, 'Image File', mockImageFileName, mockImageBytes);
+      await testFileSelectionUI(tester, 'Image File', mockImageFileName, mockImageBytes);
     });
 
     testWidgets('Selects and displays audio file preview correctly', (WidgetTester tester) async {
-      await _testFileSelection(tester, 'Audio File', mockAudioFileName, mockAudioBytes);
+      await testFileSelectionUI(tester, 'Audio File', mockAudioFileName, mockAudioBytes);
     });
 
     testWidgets('Selects and displays video file preview correctly', (WidgetTester tester) async {
-      await _testFileSelection(tester, 'Video File', mockVideoFileName, mockVideoBytes);
+      await testFileSelectionUI(tester, 'Video File', mockVideoFileName, mockVideoBytes);
     });
 
     testWidgets('Selects and displays empty file preview correctly', (WidgetTester tester) async {
-      await _testFileSelection(tester, 'Empty File', mockEmptyFileName, mockEmptyBytes);
+      await testFileSelectionUI(tester, 'Empty File', mockEmptyFileName, mockEmptyBytes);
       // Specific check for empty file's hexdump area if "N/A" is displayed differently
-      final hexdumpFinder = find.descendant(of: find.byType(SingleChildScrollView), matching: find.byType(Text));
+      final hexdumpFinder = find.byKey(const Key('hexdump_preview_text')); // Using key now
       expect(tester.widget<Text>(hexdumpFinder).data, equals("N/A"));
     });
 
