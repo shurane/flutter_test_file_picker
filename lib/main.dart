@@ -17,6 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
+      restorationScopeId: 'app',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -36,13 +37,13 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Flutter Demo Home Page', restorationId: 'myhomepage'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({super.key, required this.title, this.restorationId});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -54,27 +55,52 @@ class MyHomePage extends StatefulWidget {
   // always marked "final".
 
   final String title;
+  final String? restorationId;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  int _length = 0;
-  String _filename = "";
+class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
+  final RestorableInt _counter = RestorableInt(0);
+  final RestorableInt _length = RestorableInt(0);
+  final RestorableString _filename = RestorableString("");
+
+  @override
+  String? get restorationId => widget.restorationId;
+
+  @override
+  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
+    registerForRestoration(_counter, 'counter');
+    registerForRestoration(_filename, 'filename');
+    registerForRestoration(_length, 'length');
+  }
+
+  @override
+  void dispose() {
+    _counter.dispose();
+    _filename.dispose();
+    _length.dispose();
+    super.dispose();
+  }
+
 
   void _incrementCounter() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    developer.log("_incrementCounter() call");
+    // FilePickerResult? result = await FilePicker.platform.pickFiles();
+    FilePickerResult? result;
+    developer.log("_incrementCounter() result: $result");
+    String? filename;
+    int? length;
 
     if (result != null) {
       File file = File(result.files.single.path!);
-      _filename = file.path;
-      _length = await file.length();
-      developer.log("file path: ${basename(_filename)}, file size: ${_length.toHumanReadableFileSize()}");
+      filename = file.path;
+      length = await file.length();
+      developer.log("file path: ${basename(filename)}, file size: ${length.toHumanReadableFileSize()}");
     } else {
       developer.log("cancelled file picker");
-      // User canceled the picker
+      // User cancelled the picker
     }
     setState(() {
       // This call to setState tells the Flutter framework that something has
@@ -82,7 +108,14 @@ class _MyHomePageState extends State<MyHomePage> {
       // so that the display can reflect the updated values. If we changed
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
-      _counter++;
+      _counter.value++;
+      if (filename != null) {
+        _filename.value = filename;
+      }
+      if (length != null) {
+        _length.value = length;
+      }
+
     });
   }
 
@@ -124,10 +157,10 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              'You have pushed the button this many times: $_counter',
+              'You have pushed the button this many times: ${_counter.value}',
             ),
             Text(
-              'Filename: ${basename(_filename)} with size ${_length.toHumanReadableFileSize()}',
+              'Filename: ${basename(_filename.value)} with size ${_length.value.toHumanReadableFileSize()}',
             ),
           ],
         ),
@@ -139,4 +172,5 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+
 }
