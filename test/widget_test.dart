@@ -46,26 +46,19 @@ const String mockVideoFileName = "mock_video.mp4";
 final mockEmptyBytes = Uint8List(0);
 const String mockEmptyFileName = "empty.txt";
 
-// --- Fake FilePickerPlatform (Revised for robustness) ---
-class FakeFilePickerPlatform extends PlatformInterface implements FilePickerPlatform {
-  // Required for PlatformInterface
-  FakeFilePickerPlatform() : super(token: _token);
-  static final Object _token = Object();
-
-  FilePickerResult? _mockResult;
-  bool _pickFilesCalled = false;
-  // Add flags for other methods if needed for verification
-  // bool _clearTemporaryFilesCalled = false;
-  // bool _getDirectoryPathCalled = false;
-  // bool _saveFileCalled = false;
-
+// --- Fake FilePickerPlatform (Simplified Structure) ---
+class FakeFilePickerPlatform extends FilePickerPlatform {
+  FilePickerResult? mockResultToReturn;
+  bool pickFilesCalled = false;
+  // Add other flags if needed:
+  // bool clearTemporaryFilesCalled = false;
+  // bool getDirectoryPathCalled = false;
+  // bool saveFileCalled = false;
 
   void setMockResult(FilePickerResult? result) {
-    _mockResult = result;
-    _pickFilesCalled = false;
+    mockResultToReturn = result;
+    pickFilesCalled = false; // Reset for verification
   }
-
-  bool get pickFilesCalled => _pickFilesCalled;
 
   @override
   Future<FilePickerResult?> pickFiles({
@@ -73,7 +66,7 @@ class FakeFilePickerPlatform extends PlatformInterface implements FilePickerPlat
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
-    bool allowMultiple = false, // Corrected order based on typical signature, though order doesn't break it
+    bool allowMultiple = false,
     Function(FilePickerStatus)? onFileLoading,
     bool allowCompression = true,
     bool withData = false,
@@ -81,27 +74,24 @@ class FakeFilePickerPlatform extends PlatformInterface implements FilePickerPlat
     bool lockParentWindow = false,
     bool readSequential = false,
   }) async {
-    _pickFilesCalled = true;
-    // Mark other methods as not called for this specific interaction if necessary
-    return _mockResult;
+    pickFilesCalled = true;
+    return mockResultToReturn;
   }
 
   @override
   Future<bool?> clearTemporaryFiles() async {
-    // _clearTemporaryFilesCalled = true;
-    // Mock implementation:
-    return true;
+    // clearTemporaryFilesCalled = true;
+    return true; // Mock behavior
   }
 
   @override
   Future<String?> getDirectoryPath({
     String? dialogTitle,
+    String? initialDirectory, // Ensure this matches FilePickerPlatform
     bool lockParentWindow = false,
-    String? initialDirectory,
   }) async {
-    // _getDirectoryPathCalled = true;
-    // Mock implementation:
-    return null;
+    // getDirectoryPathCalled = true;
+    return null; // Mock behavior
   }
 
   @override
@@ -114,9 +104,8 @@ class FakeFilePickerPlatform extends PlatformInterface implements FilePickerPlat
     bool lockParentWindow = false,
     Uint8List? bytes,
   }) async {
-    // _saveFileCalled = true;
-    // Mock implementation:
-    return null;
+    // saveFileCalled = true;
+    return null; // Mock behavior
   }
 }
 
@@ -213,12 +202,12 @@ void main() {
 
     testWidgets('File picker cancellation retains previous state', (WidgetTester tester) async {
       // First, select a file
-      await _testFileSelection(tester, 'Initial File', mockTextFileName, mockTextBytes);
+      await testFileSelectionUI(tester, 'Initial File', mockTextFileName, mockTextBytes); // Fixed: _testFileSelection -> testFileSelectionUI
 
       // Store expected values before cancellation
       final expectedFilename = 'Filename: $mockTextFileName';
       final expectedSize = mockTextBytes.length.toHumanReadableFileSize();
-      final expectedHexdump = app.formatBytesAsHexdump(mockTextBytes);
+      final expectedHexdump = formatBytesAsHexdump(mockTextBytes); // Fixed: app.formatBytesAsHexdump -> formatBytesAsHexdump
 
       // Set up picker to return null (cancelled)
       fakeFilePickerPlatform.setMockResult(null);
