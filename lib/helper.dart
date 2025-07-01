@@ -1,3 +1,5 @@
+import 'dart:typed_data'; // Needed for Uint8List
+
 // thank you @MikePote: https://stackoverflow.com/a/76902150/198348
 extension FileSizeExtensions on num {
   /// method returns a human readable string representing a file size
@@ -27,4 +29,41 @@ extension FileSizeExtensions on num {
 
     return "$result ${affixes[affix]}";
   }
+}
+
+// Helper function to format bytes as a hexdump
+// Moved from main.dart
+String formatBytesAsHexdump(Uint8List bytes, {int bytesPerLine = 16}) {
+  if (bytes.isEmpty) {
+    return "N/A";
+  }
+
+  final StringBuffer hexDump = StringBuffer();
+  for (int i = 0; i < bytes.length; i += bytesPerLine) {
+    // Offset
+    hexDump.write('${i.toRadixString(16).padLeft(8, '0')}  ');
+
+    // Hex bytes
+    final StringBuffer lineBytesHex = StringBuffer();
+    final StringBuffer lineChars = StringBuffer();
+    for (int j = 0; j < bytesPerLine; j++) {
+      if (i + j < bytes.length) {
+        final byte = bytes[i + j];
+        lineBytesHex.write('${byte.toRadixString(16).padLeft(2, '0')} ');
+        // Printable ASCII characters or '.'
+        if (byte >= 32 && byte <= 126) {
+          lineChars.write(String.fromCharCode(byte));
+        } else {
+          lineChars.write('.');
+        }
+      } else {
+        // Pad if line is shorter than bytesPerLine
+        lineBytesHex.write('   ');
+      }
+      if ((j + 1) % 8 == 0 && j < bytesPerLine -1) lineBytesHex.write(' '); // Extra space after 8 bytes
+    }
+    hexDump.write(lineBytesHex.toString().padRight(bytesPerLine * 3 + (bytesPerLine ~/ 8 -1))); // Adjust padding
+    hexDump.write(' |$lineChars|\n');
+  }
+  return hexDump.toString();
 }
