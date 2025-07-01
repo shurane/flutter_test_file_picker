@@ -3,6 +3,8 @@ import 'package:path/path.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'helper.dart';
+import 'dart:convert'; // Added for base64Encode
+import 'dart:typed_data'; // Added for Uint8List
 import 'dart:developer' as developer;
 
 void main() {
@@ -65,6 +67,7 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
   final RestorableInt _counter = RestorableInt(0);
   final RestorableInt _length = RestorableInt(0);
   final RestorableString _filename = RestorableString("");
+  final RestorableString _fileBytesPreview = RestorableString("");
 
   @override
   String? get restorationId => widget.restorationId;
@@ -74,6 +77,7 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
     registerForRestoration(_counter, 'counter');
     registerForRestoration(_filename, 'filename');
     registerForRestoration(_length, 'length');
+    registerForRestoration(_fileBytesPreview, 'file_bytes_preview');
   }
 
   @override
@@ -81,16 +85,18 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
     _counter.dispose();
     _filename.dispose();
     _length.dispose();
+    _fileBytesPreview.dispose();
     super.dispose();
   }
 
 
   void _incrementCounter() async {
     developer.log("_incrementCounter() call");
-    // FilePickerResult? result = await FilePicker.platform.pickFiles();
-    FilePickerResult? result;
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    // FilePickerResult? result; // Original line, commented out for enabling file picker
     developer.log("_incrementCounter() result: $result");
     String? filename;
+    String? b64BytesPreview;
     int? length;
 
     if (result != null) {
@@ -98,9 +104,25 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
       filename = file.path;
       length = await file.length();
       developer.log("file path: ${basename(filename)}, file size: ${length.toHumanReadableFileSize()}");
+
+      // Read the first 100 bytes
+      try {
+        List<int> firstBytesList = [];
+        await for (var chunk in file.openRead(0, 100)) {
+          firstBytesList.addAll(chunk);
+          if (firstBytesList.length >= 100) break;
+        }
+        Uint8List bytesToEncode = Uint8List.fromList(firstBytesList);
+        b64BytesPreview = base64Encode(bytesToEncode);
+        developer.log("First 100 bytes (b64): $b64BytesPreview");
+      } catch (e) {
+        developer.log("Error reading file bytes: $e");
+        // Keep previous preview if reading new one fails
+        b64BytesPreview = _fileBytesPreview.value;
+      }
     } else {
       developer.log("cancelled file picker");
-      // User cancelled the picker
+      // User cancelled the picker - retain existing values by not setting them to null
     }
     setState(() {
       // This call to setState tells the Flutter framework that something has
@@ -108,14 +130,18 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
       // so that the display can reflect the updated values. If we changed
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
-      _counter.value++;
-      if (filename != null) {
-        _filename.value = filename;
+      _counter.value++; // Increment counter regardless of file pick success, as per original logic
+      if (result != null) { // Only update file info if a file was actually picked
+        if (filename != null) {
+          _filename.value = filename;
+        }
+        if (length != null) {
+          _length.value = length;
+        }
+        if (b64BytesPreview != null) {
+          _fileBytesPreview.value = b64BytesPreview;
+        }
       }
-      if (length != null) {
-        _length.value = length;
-      }
-
     });
   }
 
@@ -161,6 +187,26 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
             ),
             Text(
               'Filename: ${basename(_filename.value)} with size ${_length.value.toHumanReadableFileSize()}',
+            ),
+            const SizedBox(height: 10),
+            const Text('File content preview (first 100 bytes):'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                _fileBytesPreview.value.isEmpty
+                    ? "N/A"
+                    : (() {
+                        try {
+                          // Attempt to decode as UTF-8, allow malformed to prevent crashes on binary data
+                          return utf8.decode(base64Decode(_fileBytesPreview.value), allowMalformed: true);
+                        } catch (e) {
+                          // If base64 decoding itself fails or other error
+                          developer.log("Error decoding preview string: $e");
+                          return "Invalid preview data";
+                        }
+                      })(),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
