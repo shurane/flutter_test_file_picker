@@ -110,7 +110,7 @@ void main() {
     await tester.pumpWidget(const app.MyApp());
 
     // Verify initial state (optional, could be in a separate test)
-    expect(find.textContaining('Filename: N/A', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Filename: N/A'), findsOneWidget);
     expect(find.text('N/A', skipOffstage: false), findsWidgets); // For hexdump and possibly filename
 
     // Tap the FAB to pick a file
@@ -121,9 +121,9 @@ void main() {
     expect(fakeFilePicker.pickFilesCalled, isTrue);
 
     // Verify filename display
-    expect(find.textContaining('Filename: $fileName', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Filename: $fileName'), findsOneWidget);
     // Verify size display
-    expect(find.textContaining('with size ${fileBytes.length.toHumanReadableFileSize()}', findRichText: true), findsOneWidget);
+    expect(find.textContaining('with size ${fileBytes.length.toHumanReadableFileSize()}'), findsOneWidget);
 
     // Verify hexdump display
     final expectedHexdump = formatBytesAsHexdump(fileBytes); // Changed from app.formatBytesAsHexdump
@@ -190,8 +190,8 @@ void main() {
 
       // Verify UI still shows the previous file's data (filename, size, hexdump)
       // The counter would have incremented, this test focuses on file data.
-      expect(find.textContaining(expectedFilename, findRichText: true), findsOneWidget);
-      expect(find.textContaining('with size $expectedSize', findRichText: true), findsOneWidget);
+      expect(find.textContaining(expectedFilename), findsOneWidget);
+      expect(find.textContaining('with size $expectedSize'), findsOneWidget);
 
       final hexdumpFinder = find.descendant(of: find.byType(SingleChildScrollView), matching: find.byType(Text));
       expect(tester.widget<Text>(hexdumpFinder).data, equals(expectedHexdump));
@@ -199,8 +199,8 @@ void main() {
 
     testWidgets('Initial state shows N/A for file info and hexdump', (WidgetTester tester) async {
       await tester.pumpWidget(const app.MyApp());
-      expect(find.textContaining('Filename: N/A', findRichText: true), findsOneWidget);
-      expect(find.textContaining('with size 0 B', findRichText: true), findsOneWidget);
+      expect(find.textContaining('Filename: N/A'), findsOneWidget);
+      expect(find.textContaining('with size 0 B'), findsOneWidget);
 
       final hexdumpFinder = find.descendant(of: find.byType(SingleChildScrollView), matching: find.byType(Text));
       expect(hexdumpFinder, findsOneWidget);

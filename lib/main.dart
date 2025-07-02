@@ -70,41 +70,65 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
   void _incrementCounter() async {
     const int bytesToRead = 1024;
     developer.log("_incrementCounter() call, attempting to read $bytesToRead bytes");
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    FilePickerResult? result = await FilePicker.platform.pickFiles(withData: true); // Request bytes directly
     developer.log("_incrementCounter() result: $result");
     String? localFilename;
     String? b64BytesPreview;
     int? localLength;
 
     if (result != null) {
-      File file = File(result.files.single.path!);
-      localFilename = file.path;
-      localLength = await file.length();
-      developer.log("file path: ${basename(localFilename)}, file size: ${localLength.toHumanReadableFileSize()}");
+      PlatformFile platformFile = result.files.single;
+      // Prefer path for filename to keep basename logic, but use PlatformFile.name as fallback.
+      localFilename = platformFile.path ?? platformFile.name;
+      localLength = platformFile.size; // Always available from PlatformFile
 
-      try {
-        List<int> firstBytesList = [];
-        await for (var chunk in file.openRead(0, bytesToRead)) {
-          firstBytesList.addAll(chunk);
-          if (firstBytesList.length >= bytesToRead) break;
-        }
-        Uint8List bytesToEncode = Uint8List.fromList(firstBytesList);
+      developer.log("Selected file: ${basename(localFilename ?? "Unknown")}, size: ${localLength.toHumanReadableFileSize()}");
+
+      if (platformFile.bytes != null) {
+        Uint8List fileData = platformFile.bytes!;
+        Uint8List bytesToEncode = fileData.length > bytesToRead
+            ? Uint8List.sublistView(fileData, 0, bytesToRead)
+            : fileData;
         b64BytesPreview = base64Encode(bytesToEncode);
-        developer.log("First $bytesToRead bytes (b64 length: ${b64BytesPreview.length})");
-      } catch (e) {
-        developer.log("Error reading file bytes: $e");
-        b64BytesPreview = _fileBytesPreview.value; // Keep previous preview on error
+        developer.log("Using platformFile.bytes. Preview b64 length: ${b64BytesPreview?.length}");
+      } else {
+        // This block might be hit if 'withData: true' fails or isn't supported on some specific platform scenario,
+        // though for tests providing bytes directly to PlatformFile, platformFile.bytes should be non-null.
+                developer.log("platformFile.bytes is null. Path: ${platformFile.path}");
+        if (platformFile.path != null) {
+            File file = File(platformFile.path!); // Fallback to file system access if path is available
+             try {
+                List<int> firstBytesList = [];
+                await for (var chunk in file.openRead(0, bytesToRead)) { // This can fail in tests if path is dummy
+                    firstBytesList.addAll(chunk);
+                    if (firstBytesList.length >= bytesToRead) break;
+                }
+                Uint8List bytesToEncode = Uint8List.fromList(firstBytesList);
+                b64BytesPreview = base64Encode(bytesToEncode);
+                developer.log("Used file.openRead as fallback. Preview b64 length: ${b64BytesPreview?.length}");
+             } catch (e) {
+                developer.log("Error reading file bytes via file.openRead as fallback: $e");
+                // b64BytesPreview = _fileBytesPreview.value; // Keep previous or set to empty/error indicator
+                b64BytesPreview = ""; // Indicate error or empty preview
+             }
+        } else {
+             developer.log("No path and no bytes for file preview.");
+             b64BytesPreview = ""; // Indicate error or empty preview
+        }
       }
+      // Ensure filename is non-null if possible, for UI display.
+      localFilename ??= "Unknown Filename";
     } else {
-      developer.log("cancelled file picker");
+      developer.log("File picker cancelled");
     }
 
     setState(() {
       _counter.value++;
-      if (result != null) {
-        if (localFilename != null) _filename.value = localFilename;
-        if (localLength != null) _length.value = localLength;
-        if (b64BytesPreview != null) _fileBytesPreview.value = b64BytesPreview;
+      // Only update file info if a file was actually picked successfully
+      if (result != null && localFilename != null && localLength != null && b64BytesPreview != null) {
+        _filename.value = localFilename;
+        _length.value = localLength;
+        _fileBytesPreview.value = b64BytesPreview;
       }
     });
   }
