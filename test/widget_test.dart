@@ -5,13 +5,11 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'dart:async';
 import 'dart:convert'; // For utf8.encode
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 // Assuming main.dart is in lib/
 // Adjust the import path if your project structure is different.
@@ -46,8 +44,8 @@ const String mockVideoFileName = "mock_video.mp4";
 final mockEmptyBytes = Uint8List(0);
 const String mockEmptyFileName = "empty.txt";
 
-// --- Fake FilePickerPlatform (Simplified Structure) ---
-class FakeFilePickerPlatform extends FilePickerPlatform {
+// --- Fake FilePicker (Simplified Structure) ---
+class FakeFilePicker extends FilePicker {
   FilePickerResult? mockResultToReturn;
   bool pickFilesCalled = false;
   // Add other flags if needed:
@@ -66,9 +64,10 @@ class FakeFilePickerPlatform extends FilePickerPlatform {
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
-    bool allowMultiple = false,
     Function(FilePickerStatus)? onFileLoading,
     bool allowCompression = true,
+    int compressionQuality = 0,
+    bool allowMultiple = false,
     bool withData = false,
     bool withReadStream = false,
     bool lockParentWindow = false,
@@ -77,44 +76,14 @@ class FakeFilePickerPlatform extends FilePickerPlatform {
     pickFilesCalled = true;
     return mockResultToReturn;
   }
-
-  @override
-  Future<bool?> clearTemporaryFiles() async {
-    // clearTemporaryFilesCalled = true;
-    return true; // Mock behavior
-  }
-
-  @override
-  Future<String?> getDirectoryPath({
-    String? dialogTitle,
-    String? initialDirectory, // Ensure this matches FilePickerPlatform
-    bool lockParentWindow = false,
-  }) async {
-    // getDirectoryPathCalled = true;
-    return null; // Mock behavior
-  }
-
-  @override
-  Future<String?> saveFile({
-    String? dialogTitle,
-    String? fileName,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    bool lockParentWindow = false,
-    Uint8List? bytes,
-  }) async {
-    // saveFileCalled = true;
-    return null; // Mock behavior
-  }
 }
 
 void main() {
-  late FakeFilePickerPlatform fakeFilePickerPlatform;
+  late FakeFilePicker fakeFilePicker;
 
   setUp(() {
-    fakeFilePickerPlatform = FakeFilePickerPlatform();
-    FilePicker.platform = fakeFilePickerPlatform;
+    fakeFilePicker = FakeFilePicker();
+    FilePicker.platform = fakeFilePicker;
   });
 
   // Helper function to create FilePickerResult from bytes
@@ -136,7 +105,7 @@ void main() {
     String fileName,
     Uint8List fileBytes,
   ) async {
-    fakeFilePickerPlatform.setMockResult(createMockFilePickerResult(fileName, fileBytes));
+    fakeFilePicker.setMockResult(createMockFilePickerResult(fileName, fileBytes));
 
     await tester.pumpWidget(const app.MyApp());
 
@@ -149,7 +118,7 @@ void main() {
     await tester.pumpAndSettle(); // Let animations and async operations complete
 
     // Verify that pickFiles was called
-    expect(fakeFilePickerPlatform.pickFilesCalled, isTrue);
+    expect(fakeFilePicker.pickFilesCalled, isTrue);
 
     // Verify filename display
     expect(find.textContaining('Filename: $fileName', findRichText: true), findsOneWidget);
@@ -210,14 +179,14 @@ void main() {
       final expectedHexdump = formatBytesAsHexdump(mockTextBytes); // Fixed: app.formatBytesAsHexdump -> formatBytesAsHexdump
 
       // Set up picker to return null (cancelled)
-      fakeFilePickerPlatform.setMockResult(null);
+      fakeFilePicker.setMockResult(null);
 
       // Tap the FAB again
       await tester.tap(find.byIcon(Icons.add));
       await tester.pumpAndSettle();
 
       // Verify that pickFiles was called
-      expect(fakeFilePickerPlatform.pickFilesCalled, isTrue);
+      expect(fakeFilePicker.pickFilesCalled, isTrue);
 
       // Verify UI still shows the previous file's data (filename, size, hexdump)
       // The counter would have incremented, this test focuses on file data.
