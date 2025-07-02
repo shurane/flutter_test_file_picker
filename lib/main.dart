@@ -73,7 +73,7 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
     FilePickerResult? result = await FilePicker.platform.pickFiles(withData: true); // Request bytes directly
     developer.log("_incrementCounter() result: $result");
     String? localFilename;
-    String? b64BytesPreview;
+    late String b64BytesPreview;
     int? localLength;
 
     if (result != null) {
@@ -82,7 +82,7 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
       localFilename = platformFile.path ?? platformFile.name;
       localLength = platformFile.size; // Always available from PlatformFile
 
-      developer.log("Selected file: ${basename(localFilename ?? "Unknown")}, size: ${localLength.toHumanReadableFileSize()}");
+      developer.log("Selected file: ${basename(localFilename)}, size: ${localLength.toHumanReadableFileSize()}");
 
       if (platformFile.bytes != null) {
         Uint8List fileData = platformFile.bytes!;
@@ -90,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
             ? Uint8List.sublistView(fileData, 0, bytesToRead)
             : fileData;
         b64BytesPreview = base64Encode(bytesToEncode);
-        developer.log("Using platformFile.bytes. Preview b64 length: ${b64BytesPreview?.length}");
+        developer.log("Using platformFile.bytes. Preview b64 length: ${b64BytesPreview.length}");
       } else {
         // This block might be hit if 'withData: true' fails or isn't supported on some specific platform scenario,
         // though for tests providing bytes directly to PlatformFile, platformFile.bytes should be non-null.
@@ -105,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
                 }
                 Uint8List bytesToEncode = Uint8List.fromList(firstBytesList);
                 b64BytesPreview = base64Encode(bytesToEncode);
-                developer.log("Used file.openRead as fallback. Preview b64 length: ${b64BytesPreview?.length}");
+                developer.log("Used file.openRead as fallback. Preview b64 length: ${b64BytesPreview.length}");
              } catch (e) {
                 developer.log("Error reading file bytes via file.openRead as fallback: $e");
                 // b64BytesPreview = _fileBytesPreview.value; // Keep previous or set to empty/error indicator
@@ -117,7 +117,6 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
         }
       }
       // Ensure filename is non-null if possible, for UI display.
-      localFilename ??= "Unknown Filename";
     } else {
       developer.log("File picker cancelled");
     }
@@ -125,7 +124,7 @@ class _MyHomePageState extends State<MyHomePage> with RestorationMixin {
     setState(() {
       _counter.value++;
       // Only update file info if a file was actually picked successfully
-      if (result != null && localFilename != null && localLength != null && b64BytesPreview != null) {
+      if (result != null && localFilename != null && localLength != null) {
         _filename.value = localFilename;
         _length.value = localLength;
         _fileBytesPreview.value = b64BytesPreview;
